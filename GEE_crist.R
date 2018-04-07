@@ -17,17 +17,22 @@ library('psych')
 ## To import the .csv files containing the temporal series, clean and extract information
 
 # To get the relative paths to the csv files downloaded directly from GEE
-files<-list.files(path = "G:/sagebrushRefSit", pattern = '.csv',full.names=T)
-data2<-read.csv('C:/Users/juanm/Downloads/ee-chart.csv')
+files<-list.files(path = "D:/Cristina/Boise state University/PhD/Parcelas/Datos EVI", pattern = '.csv',full.names=T)
+data2<-read.csv('D:/Cristina/Boise state University/PhD/Parcelas/ee-chart.csv')
 
 # Loop to import and merge the .csv files
 data1<-data.frame()
-data2<-data.frame()
 for(i in 1:length(files)) {
   d1<-read.csv(files[i])
   data1<-d1
-  data2<-rbind(data2,data1)
+  data2<-cbind(data2,data1)
 }
+#Changing name of first column so it is not erased
+colnames(data2)[1] = "Time"
+#Remove repeated columns
+data2$system.time_start<-NULL
+#Change the name back so it is recognized by the code
+colnames(data2)[1] = "system.time_start"
 # Loop to remove NA and group the data by year
 n<-NULL
 temporalSeries<-NULL
@@ -56,7 +61,7 @@ for(i in 1:length(temporalSeries)) {
   }
 }
 #save(temporalSeries,file='D:/BSU_Lab/Code_Repository/temporalSeries.Rdata')
-load('D:/BSU_Lab/Code_Repository/temporalSeries.Rdata')
+#load('D:/BSU_Lab/Code_Repository/temporalSeries.Rdata')
 
 # To remove NA from the duplicate dates (run with the just above loop)
 temporalSeries2<-lapply(temporalSeries, na.exclude) 
@@ -84,58 +89,6 @@ for (i in 1:length(temporalSeries2)) {
     dates_site_year<-data.frame(Sites,Year,Number_dates)
   }
 }
-
-# To calculate number of LS images per site and month
-dates_site_month<-NULL
-n<-NULL
-Number_dates<-NULL
-m<-NULL
-Year<-NULL
-t<-NULL
-Sites<-NULL
-h<-NULL
-Month<-NULL
-for (i in 1:length(temporalSeries2)) {
-  nam<-names(temporalSeries2[[i]][2])
-  year<-sub(".*, ", "", temporalSeries2[[i]][1,1])
-  for(j in c('Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec')) {
-    month<-str_detect(temporalSeries2[[i]]$system.time_start,j)
-    if (is.na(temporalSeries2[[i]][1,1])) {} else {
-      month2<-substr(temporalSeries2[[i]][month,1],start=1, stop=3)[1]
-      n<-length(temporalSeries2[[i]][month,2])
-      Number_dates<-rbind(Number_dates,n)
-      t<-nam
-      Sites<-rbind(Sites,t)
-      m<-year
-      Year<-rbind(Year,m)
-      h<-month2
-      Month<-rbind(Month,h)
-      dates_site_month<-data.frame(Sites,Year,Month,Number_dates)
-    }
-  }
-}
-
-
-#How many images are there per year in a site?
-dates_site_year[which(dates_site_year$Sites=='X4'),]
-boxplot(Number_dates~Year,data = dates_site_year[,21], xlab='Year', ylab='Number of images (dates)')
-describeBy(dates_site_year$Number_dates, group = dates_site_year$Sites)$X4
-boxplot(Number_dates~Sites)
-
-dates#How many images are there per month and year in a site?
-dates_site_month[which(dates_site_month$Sites=='X4'&dates_site_month$Year==2000),]
-boxplot(Number_dates~Month,data = dates_site_month[which(dates_site_month$Sites=='X4'
-                                                         &dates_site_month$Year=='2016'),], xlab='Reference sites', ylab='Number of images (dates)')
-
-
-# Plot histograms
-data<-dates_site_year[which(dates_site_year$Sites=='X4'|dates_site_year$Sites=='X5'|dates_site_year$Sites=='X6'),]
-ggplot(data,aes(x=Number_dates))+geom_histogram()+theme_bw()+facet_grid(Sites~.)
-
-
-# Plot histograms
-data<-dates_site_month[which(dates_site_month$Sites=='X4'),]
-ggplot(data,aes(x=Number_dates))+geom_histogram()+theme_bw()+facet_grid(Sites:Month~.)
 
 
 # To correctly name the components of the list of data frames
@@ -186,105 +139,43 @@ for(i in 1:length(temporalSeries3)) {
     }
   }}
 
-# TO PLOT TEMPORAL SERIES 
-#one way
-
-EVI<-temporalSeries3[c(100:131)]#X7
-EVI<-temporalSeries3[c(67:98)]#X6
-EVI<-temporalSeries3[c(1:32)]#X4
-EVI<-temporalSeries3[c(34:65)]#X5
-EVI<-temporalSeries3[c(200:230)]#X2
-EVI<-temporalSeries3[c(167:197)]#X3
-EVI<-temporalSeries3[c(233:263)]#X1
-EVI<-do.call(rbind,EVI)
-
-size1<-length(EVI$system.time_start)
-size2<-length(EVI$system.time_start)+1
-size3<-size1+length(EVIdisturbed$system.time_start)
-data<-data.frame(system.time_start = c(as.character(EVI$system.time_start),as.character(EVIdisturbed$system.time_start)),
-# be careful, change the site number
-EVI=c(as.numeric(EVI$X7),as.numeric(EVIdisturbed$disturbed1)),
-dates=c(as.Date(EVI$ISOdate, format= '%m/%d/%Y'),as.Date(EVIdisturbed$ISOdate,format ='%m/%d/%Y') ))
-data$group<-NA
-data$group[c(1:size1)]<-'Reference site' ## pay attention: change the number of rows,494
-data$group[c(size2:size3)]<-'Disturbed site'
-data<-na.omit(data)
-
-ggplot(data,aes(x=dates,y=EVI,shape = group,color=group)) + geom_line() + stat_smooth(method = "loess", formula = y~x,span =0.40 ,size = 2,na.rm = T) +
-ggtitle("Disturbed site vs. reference n25")
-
-#another way bu using the same data frame
-
-# to plot only winter
-ggplot(data = data[which(str_detect(data$system.time_start,c('Dec'))|
-str_detect(data$system.time_start,c('Jan'))|
-str_detect(data$system.time_start,c('Feb'))),],
-mapping = aes(x = dates, y = EVI, group=group, colour = group)) +
-  geom_point() + ggtitle("Disturbed site vs. reference n1") +
-  geom_line() #+ stat_smooth(method = "loess", formula = y~x,span =0.40 ,size = 2,na.rm = T)
-
-# to plot the complete period
-ggplot(data = data,
-mapping = aes(x = dates, y = EVI, group=group, colour = group)) +
-geom_point() + ggtitle("Disturbed site vs. reference n1") +
-geom_line() #+ stat_smooth(method = "loess", formula = y~x,span =0.40 ,size = 2,na.rm = T)
+#mean of reference sites
+ref.2006<-mean(temporalSeries[][str_detect(names(temporalSeries3),"_X25090")][22][1][1]$j[,2],na.rm=T)
+ref.2017<-mean(temporalSeries[][str_detect(names(temporalSeries3),"_X25090")][33][1][1]$j[,2],na.rm=T)
+difRef<-ref.2017-ref.2006
 
 
-# Another way
-# To select the site and year according to target ones
-data<-temporalSeries3[which(names(temporalSeries3[])=='2016_X13')]
+#Make a table
+Y<-c(2006,2017)
+X25090<-c(ref.2006, ref.2017)
+track<-as.data.frame(rbind(Y,X25090))
+col_headings <- Y
+names(track) <- col_headings
+track<-track[-1,]
+
+#create names list
+site<-as.vector((colnames(data2)))
+site<-site[-1]
+site<-as.character(gsub("X","",site))
 
 
-AirTempDaily <- ggplot(EVI, aes(as.Date(ISOdate,format='%m/%d/%Y'),X7)) +
-  #AirTempDaily <- ggplot(data$'2016_X13', aes(as.numeric(system.time_start), X13)) +
-  geom_point(na.rm=TRUE, color="black", size=2) +
-  ggtitle("EVI reference site n? , 1985 - 2016") +
-  xlab("Date") + ylab("EVI") + geom_line()
-
-AirTempDaily + stat_smooth(method = "loess", formula = y ~ x, size = 2,na.rm = T)
-
-###################################################################################
-###################################################################################
-###################################################################################
-########################  DECOMPOSITING SERIES      ###############################
-library('stats')
-# reference site
-mo_r <- strftime(data$dates[which(data$group=='Reference site')], "%m")
-yr_r <- strftime(data$dates[which(data$group=='Reference site')], "%Y")
-rf<-data.frame(mo_r,yr_r,data$EVI[which(data$group=='Reference site')])
-rf.agg<-aggregate(data.EVI.which.data.group.....Reference.site... ~  yr_r + mo_r, rf, FUN = mean)
-rf.agg$date <- as.POSIXct(paste(rf.agg$yr_r, rf.agg$mo_r, "01", sep = "-"))
-names(rf.agg)<-c("yr_r", "mo_r","EVI", "date")
-
-# disturbed site
-mo_d <- strftime(data$dates[which(data$group=='Disturbed site')], "%m")
-yr_d <- strftime(data$dates[which(data$group=='Disturbed site')], "%Y")
-ds<-data.frame(mo_d,yr_d,data$EVI[which(data$group=='Disturbed site')])
-ds.agg<-aggregate(data.EVI.which.data.group.....Disturbed.site... ~ mo_d + yr_d, ds, FUN = mean)
-ds.agg$date <- as.POSIXct(paste(ds.agg$yr_d, ds.agg$mo_d, "01", sep = "-"))
-names(ds.agg)<-c("mo_r", "yr_r","EVI", "date")
-
-monthly<-aggregate(EVI ~ mo_r * yr_r, ds.agg, FUN = mean)
-monthly$season<-NA
-for (i in 1:length(monthly$EVI)) {
-  if (monthly[i,1]=='01'|monthly[i,1]=='02'|monthly[i,1]=='12') {monthly[i,4]<-'winter'}
-  else {
-    if (monthly[i,1]=='03'|monthly[i,1]=='04'|monthly[i,1]=='05') {monthly[i,4]<-'spring'}
-    else {
-      if (monthly[i,1]=='06'|monthly[i,1]=='07'|monthly[i,1]=='08') {monthly[i,4]<-'summer'}
-      else {
-        if (monthly[i,1]=='09'|monthly[i,1]=='10'|monthly[i,1]=='11') {monthly[i,4]<-'autumn'}
-        else {}
-      }
-    }
-  }
+#mean of all sites
+track1<-data.frame()
+for (i in 2:298) {
+  d1<-mean(temporalSeries[][str_detect(names(temporalSeries3),site[i])][22][1][1]$j[,2],na.rm=T)
+  d2<-mean(temporalSeries[][str_detect(names(temporalSeries3),site[i])][33][1][1]$j[,2],na.rm=T)
+  track1<-c(d1,d2)
+  track<-rbind(track,track1)
 }
-monthly2<-aggregate(EVI ~ season*yr_r, monthly, FUN = mean)
+#match each EVI with the plot number
+track3<-cbind(site,track)
 
-rss<-ts(monthly2$EVI, frequency = 4, start = c(1986, 1), end = c(2016, 1))
-bss<-ts(ds.agg$EVI, frequency = 4, start = c(1986, 1), end = c(2016, 1))
 
-rs_dec<-stl(rss, s.window = 'per')
-rs_bs<-stl(bss, s.window = 'per')
+#x10394.2006<-mean(temporalSeries[][str_detect(names(temporalSeries3),"10394")][22][1][1]$j[,2],na.rm=T)
+#x10394.2017<-mean(temporalSeries[][str_detect(names(temporalSeries3),"10394")][33][1][1]$j[,2],na.rm=T)
+#x10394<-x10394.2017-x10394.2006
 
-fit<- decompose(bss,type="additive")
+#Calculate differences between 2006 and 2017
+
+change<-track3$`2017`-track3$`2006`
+tra<-cbind(track3,change)
